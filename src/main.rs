@@ -5,7 +5,7 @@ async fn main() -> std::io::Result<()> {
     use actix_web::*;
     use leptos::*;
     use leptos_actix::{generate_route_list, LeptosRoutes};
-    use leptos_actix_template::app::*;
+    use leptos_actix_webtransport_template::app::App;
 
     let conf = get_configuration(None).await.unwrap();
     let addr = conf.leptos_options.site_addr;
@@ -27,7 +27,7 @@ async fn main() -> std::io::Result<()> {
             .service(favicon)
             .leptos_routes(leptos_options.to_owned(), routes.to_owned(), App)
             .app_data(web::Data::new(leptos_options.to_owned()))
-        //.wrap(middleware::Compress::default())
+            .wrap(middleware::Compress::default())
     })
     .bind(&addr)?
     .run()

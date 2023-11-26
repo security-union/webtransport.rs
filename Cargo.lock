@@ -1220,7 +1220,6 @@ dependencies = [
  "leptos_meta",
  "leptos_router",
  "leptos_webtransport",
- "log",
  "wasm-bindgen",
  "web-sys",
 ]
@@ -1436,12 +1435,10 @@ dependencies = [
 [[package]]
 name = "leptos_webtransport"
 version = "0.1.0"
-source = "git+https://github.com/security-union/leptos-webtransport.git#2e08bf4945d7aca3f956d8c78c3d52b3037b63c3"
 dependencies = [
  "anyhow",
  "js-sys",
  "leptos",
- "log",
  "thiserror",
  "wasm-bindgen",
  "wasm-bindgen-futures",
