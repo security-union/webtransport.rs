@@ -16,6 +16,9 @@ pub fn WebtransportDemo() -> impl IntoView {
     let (connect, set_connect) = create_signal(false);
     let (status, set_status) = create_signal(WebTransportStatus::Closed);
     let (transport, set_transport) = create_signal::<Arc<Option<WebTransportTask>>>(Arc::new(None));
+    let datagrams = create_rw_signal(create_signal::<Vec<u8>>(Vec::new()).0);
+    let unidirectional_streams = create_rw_signal(create_signal::<Option<_>>(None).0);
+    let bidirectional_streams = create_rw_signal(create_signal::<Option<_>>(None).0);
 
     let on_submit = move |ev: SubmitEvent| {
         // stop the page from reloading!
@@ -31,16 +34,21 @@ pub fn WebtransportDemo() -> impl IntoView {
             // to get the current value of the input
             .value();
 
-        let c = connect.get_untracked();
+        let connected = connect.get_untracked();
 
-        if !c {
+        if !connected {
             if let Ok(t) = WebTransportService::connect(&value) {
+                datagrams.set(t.datagram.clone());
+                unidirectional_streams.set(t.unidirectional_stream.clone());
+                bidirectional_streams.set(t.bidirectional_stream.clone());
+                set_status(t.status.get());
                 set_transport(Arc::new(Some(t)));
             }
         } else {
             if let Some(t) = transport.get_untracked().as_ref() {
-                t.transport.close();
+                t.close();
             }
+            set_status(WebTransportStatus::Closed);
             set_transport(Arc::new(None));
         }
         set_connect(!connect.get_untracked());
@@ -88,6 +96,12 @@ pub fn WebtransportDemo() -> impl IntoView {
         }
     });
 
+    create_effect(move |_| {
+        let datagram= datagrams.get().get();
+        let s = String::from_utf8(datagram).unwrap();
+        logging::log!("Received datagram: {}", s);
+    });
+
     view! {
         <form on:submit=on_submit>
             <input type="text" value=url node_ref=url_input_element/>
@@ -108,5 +122,11 @@ pub fn WebtransportDemo() -> impl IntoView {
             <input type="radio" name="method" value="send_bidirectional_stream"/>
             <label for="send_datagram">Send Bidirectional Stream</label>
         </form>
+        <div>
+            <h2>Received Data</h2>
+            <div>
+                <textarea value=data readonly=true></textarea>
+            </div>
+        </div>
     }
 }
