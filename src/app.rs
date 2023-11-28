@@ -1,7 +1,7 @@
+use crate::webtransport::WebtransportDemo;
 use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
-use crate::webtransport::WebtransportDemo;
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -9,8 +9,6 @@ pub fn App() -> impl IntoView {
     provide_meta_context();
 
     view! {
-        // injects a stylesheet into the document <head>
-        // id=leptos means cargo-leptos will hot-reload this stylesheet
         <Stylesheet id="leptos" href="/pkg/leptos_actix_template.css"/>
 
         // sets the document title
@@ -32,8 +30,8 @@ pub fn App() -> impl IntoView {
 #[component]
 fn HomePage() -> impl IntoView {
     view! {
-        <h1>"Welcome to Leptos!"</h1>
-        <WebtransportDemo />
+        <h1>"Welcome to Leptos WebTransport!"</h1>
+        <WebtransportDemo/>
     }
 }
 
@@ -54,7 +52,5 @@ fn NotFound() -> impl IntoView {
         resp.set_status(actix_web::http::StatusCode::NOT_FOUND);
     }
 
-    view! {
-        <h1>"Not Found"</h1>
-    }
+    view! { <h1>"Not Found"</h1> }
 }

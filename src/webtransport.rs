@@ -1,15 +1,112 @@
-use leptos::*;
-use leptos_webtransport::{WebTransportStatus, WebTransportTask, WebTransportService};
+use leptos::{
+    html::{Input, Textarea},
+    *,
+};
+use leptos_webtransport::{WebTransportService, WebTransportStatus, WebTransportTask};
 use std::sync::Arc;
+use web_sys::SubmitEvent;
 
-const ECHO_URL: &str = "https://echo.rustlemania.com/";
+pub const ECHO_URL: &str = "https://echo.rustlemania.com/";
 
 #[component]
 pub fn WebtransportDemo() -> impl IntoView {
-    let transport = WebTransportService::connect(ECHO_URL).unwrap();
+    let (data, set_data) = create_signal(String::new());
+    let (url, set_url) = create_signal(ECHO_URL.to_string());
+    let url_input_element: NodeRef<Input> = create_node_ref();
+    let (connect, set_connect) = create_signal(false);
+    let (status, set_status) = create_signal(WebTransportStatus::Closed);
+    let (transport, set_transport) = create_signal::<Arc<Option<WebTransportTask>>>(Arc::new(None));
+
+    let on_submit = move |ev: SubmitEvent| {
+        // stop the page from reloading!
+        ev.prevent_default();
+
+        // here, we'll extract the value from the input
+        let value = url_input_element()
+            // event handlers can only fire after the view
+            // is mounted to the DOM, so the `NodeRef` will be `Some`
+            .expect("<input> to exist")
+            // `NodeRef` implements `Deref` for the DOM element type
+            // this means we can call`HtmlInputElement::value()`
+            // to get the current value of the input
+            .value();
+
+        let c = connect.get_untracked();
+
+        if !c {
+            if let Ok(t) = WebTransportService::connect(&value) {
+                set_transport(Arc::new(Some(t)));
+            }
+        } else {
+            if let Some(t) = transport.get_untracked().as_ref() {
+                t.transport.close();
+            }
+            set_transport(Arc::new(None));
+        }
+        set_connect(!connect.get_untracked());
+        set_url(value.clone());
+    };
+    let text_area_element: NodeRef<Textarea> = create_node_ref();
+
+    let send_data = move |ev: SubmitEvent| {
+        // stop the page from reloading!
+        ev.prevent_default();
+
+        // here, we'll extract the value from the input
+        let value = text_area_element()
+            // event handlers can only fire after the view
+            // is mounted to the DOM, so the `NodeRef` will be `Some`
+            .expect("<textarea> to exist")
+            // `NodeRef` implements `Deref` for the DOM element type
+            // this means we can call`HtmlInputElement::value()`
+            // to get the current value of the input
+            .value();
+        set_data(value.clone());
+        if let Some(t) = transport.get_untracked().as_ref() {
+            WebTransportTask::send_datagram(t.transport.clone(), value.as_bytes().to_vec());
+        }
+    };
+
+    create_effect(move |_| {
+        if let Some(t) = transport.get().as_ref() {
+            let status = t.status.get();
+            set_status(status.clone());
+            match status {
+                WebTransportStatus::Closed => {
+                    logging::log!("WebTransportStatus Connection closed");
+                }
+                WebTransportStatus::Connecting => {
+                    logging::log!("WebTransportStatus Connecting...");
+                }
+                WebTransportStatus::Opened => {
+                    logging::log!("WebTransportStatus Connection opened");
+                }
+                WebTransportStatus::Error => {
+                    logging::error!("WebTransportStatus Connection error");
+                }
+            }
+        }
+    });
 
     view! {
-        // <button on:click=connect_webtransport>Connect WebTransport</button>
+        <form on:submit=on_submit>
+            <input type="text" value=url node_ref=url_input_element/>
+            <input
+                type="submit"
+                value=move || { if connect.get() { "Disconnect" } else { "Connect" } }
+            />
+        </form>
+        <h2>{move || { format!("WebTransport Status: {:?}", status.get()) }}
+        </h2>
+        <form on:submit=send_data>
+            <textarea value=data node_ref=text_area_element></textarea>
+            <input type="submit" value="Send Data"/>
+            <input type="radio" name="method" value="send_datagram" checked=true/>
+            <label for="send_data">Send Datagram</label>
+            <input type="radio" name="method" value="send_undirectional_stream"/>
+            <label for="send_stream">Send Unidirectional Stream</label>
+            <input type="radio" name="method" value="send_bidirectional_stream"/>
+            <label for="send_datagram">Send Bidirectional Stream</label>
+        </form>
     }
-
 }
