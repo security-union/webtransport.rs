@@ -8,7 +8,7 @@ use wasm_bindgen::{JsCast, JsValue, closure::Closure};
 use std::sync::Arc;
 use web_sys::SubmitEvent;
 
-pub const ECHO_URL: &str = "https://echo.rustlemania.com/";
+pub const ECHO_URL: &str = "https://127.0.0.1:4433/";
 
 #[component]
 pub fn WebtransportDemo() -> impl IntoView {
