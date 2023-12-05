@@ -5,7 +5,13 @@ async fn main() -> std::io::Result<()> {
     use actix_web::*;
     use leptos::*;
     use leptos_actix::{generate_route_list, LeptosRoutes};
-    use leptos_actix_webtransport_template::app::App;
+    use leptos_actix_webtransport_template::{app::App, webtransport_server::*};
+    use std::net::ToSocketAddrs;
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
+        .with_writer(std::io::stderr)
+        .init();
 
     let conf = get_configuration(None).await.unwrap();
     let addr = conf.leptos_options.site_addr;
@@ -13,11 +19,33 @@ async fn main() -> std::io::Result<()> {
     let routes = generate_route_list(App);
     println!("listening on http://{}", &addr);
 
+    let opt = WebTransportOpt {
+        listen: std::env::var("LISTEN_URL")
+            .unwrap_or("0.0.0.0:4433".to_string())
+            .to_socket_addrs()
+            .expect("expected LISTEN_URL to be a valid socket address")
+            .next()
+            .expect("expected LISTEN_URL to be a valid socket address"),
+        certs: Certs {
+            key: std::env::var("KEY_PATH")
+                .unwrap_or("./certs/localhost.key".into())
+                .into(),
+            cert: std::env::var("CERT_PATH")
+                .unwrap_or("./certs/localhost.der".into())
+                .into(),
+        },
+    };
+
+    let _webtransport_server_task = actix_rt::spawn(async move {
+        start(opt).await.unwrap();
+    });
+
     HttpServer::new(move || {
         let leptos_options = &conf.leptos_options;
         let site_root = &leptos_options.site_root;
 
         App::new()
+            .route("/healthz", web::get().to(|| HttpResponse::Ok()))
             .route("/api/{tail:.*}", leptos_actix::handle_server_fns())
             // serve JS/WASM/CSS from `pkg`
             .service(Files::new("/pkg", format!("{site_root}/pkg")))

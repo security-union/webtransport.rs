@@ -67,10 +67,6 @@ pub fn WebtransportDemo() -> impl IntoView {
             .value();
         set_data(value.clone());
         if let Some(t) = transport.get_untracked().as_ref() {
-            // TODO: add support for other methods
-            // WebTransportTask::send_datagram(t.transport.clone(), value.as_bytes().to_vec());
-
-            // Get the radio button value
             let method = ev
                 .target()
                 .expect("event target")
@@ -142,6 +138,31 @@ pub fn WebtransportDemo() -> impl IntoView {
         });
         let catch = Closure::new(|e: JsValue| {
             logging::error!("Error reading unidirectional stream: {:?}", e);
+        });
+        let _ = reader.read().then(&c).catch(&catch);
+        c.forget();
+        catch.forget();
+    });
+
+    create_effect(move |_| {
+        let Some(stream) = bidirectional_streams.get().get() else {
+            logging::log!("No bidirectional stream");
+            return;
+        };
+        let reader = stream.readable().unchecked_into::<web_sys::ReadableStreamDefaultReader>();
+        let c = Closure::new(move |result: JsValue| {
+            let done = js_sys::Reflect::get(&result, &JsValue::from_str("done")).unwrap().as_bool().unwrap();
+            let value = js_sys::Reflect::get(&result, &JsValue::from_str("value")).unwrap().unchecked_into::<Uint8Array>();
+            if done {
+                logging::log!("Bidirectional stream closed");
+            }
+            let value = js_sys::Uint8Array::new(&value);
+            let s = String::from_utf8(value.to_vec()).unwrap();
+            logging::log!("Received bidirectional stream: {}", s);
+            // set_bidirectional_streams_from_client(value.to_vec());
+        });
+        let catch = Closure::new(|e: JsValue| {
+            logging::error!("Error reading bidirectional stream: {:?}", e);
         });
         let _ = reader.read().then(&c).catch(&catch);
         c.forget();

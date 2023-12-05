@@ -1,5 +1,7 @@
 pub mod app;
-pub mod webtransport;
+pub mod components;
+#[cfg(feature = "ssr")]
+pub mod webtransport_server;
 use cfg_if::cfg_if;
 
 cfg_if! {

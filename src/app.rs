@@ -1,4 +1,4 @@
-use crate::webtransport::WebtransportDemo;
+use crate::components::WebtransportDemo;
 use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
