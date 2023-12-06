@@ -4,7 +4,9 @@ use leptos::{
     *,
 };
 use leptos_webtransport::{WebTransportService, WebTransportStatus, WebTransportTask};
-use wasm_bindgen::{JsCast, JsValue, closure::Closure};
+
+use wasm_bindgen::{JsCast, JsValue};
+use wasm_bindgen_futures::{spawn_local, JsFuture};
 use std::sync::Arc;
 use web_sys::SubmitEvent;
 
@@ -21,7 +23,6 @@ pub fn WebtransportDemo() -> impl IntoView {
     let datagrams = create_rw_signal(create_signal::<Vec<u8>>(Vec::new()).0);
     let unidirectional_streams = create_rw_signal(create_signal::<Option<_>>(None).0);
     let bidirectional_streams = create_rw_signal(create_signal::<Option<_>>(None).0);
-    let (bidirectional_streams_from_client, set_bidirectional_streams_from_client) = create_signal::<Vec<u8>>(Vec::new());
 
     let on_submit = move |ev: SubmitEvent| {
         // stop the page from reloading!
@@ -85,9 +86,6 @@ pub fn WebtransportDemo() -> impl IntoView {
                 "send_undirectional_stream" => {
                     WebTransportTask::send_unidirectional_stream(t.transport.clone(), value.as_bytes().to_vec());
                 }
-                "send_bidirectional_stream" => {
-                    WebTransportTask::send_bidirectional_stream(t.transport.clone(), value.as_bytes().to_vec(), set_bidirectional_streams_from_client.clone());
-                }
                 _ => {}
             }
         }
@@ -126,7 +124,8 @@ pub fn WebtransportDemo() -> impl IntoView {
             return;
         };
         let reader = stream.get_reader().unchecked_into::<web_sys::ReadableStreamDefaultReader>();
-        let c = Closure::new(|result: JsValue| {
+        spawn_local(async move {
+            let result = JsFuture::from(reader.read()).await.unwrap();
             let done = js_sys::Reflect::get(&result, &JsValue::from_str("done")).unwrap().as_bool().unwrap();
             let value = js_sys::Reflect::get(&result, &JsValue::from_str("value")).unwrap().unchecked_into::<Uint8Array>();
             if done {
@@ -135,39 +134,11 @@ pub fn WebtransportDemo() -> impl IntoView {
             let value = js_sys::Uint8Array::new(&value);
             let s = String::from_utf8(value.to_vec()).unwrap();
             logging::log!("Received unidirectional stream: {}", s);
+            set_data(s);
+
         });
-        let catch = Closure::new(|e: JsValue| {
-            logging::error!("Error reading unidirectional stream: {:?}", e);
-        });
-        let _ = reader.read().then(&c).catch(&catch);
-        c.forget();
-        catch.forget();
     });
 
-    create_effect(move |_| {
-        let Some(stream) = bidirectional_streams.get().get() else {
-            logging::log!("No bidirectional stream");
-            return;
-        };
-        let reader = stream.readable().unchecked_into::<web_sys::ReadableStreamDefaultReader>();
-        let c = Closure::new(move |result: JsValue| {
-            let done = js_sys::Reflect::get(&result, &JsValue::from_str("done")).unwrap().as_bool().unwrap();
-            let value = js_sys::Reflect::get(&result, &JsValue::from_str("value")).unwrap().unchecked_into::<Uint8Array>();
-            if done {
-                logging::log!("Bidirectional stream closed");
-            }
-            let value = js_sys::Uint8Array::new(&value);
-            let s = String::from_utf8(value.to_vec()).unwrap();
-            logging::log!("Received bidirectional stream: {}", s);
-            // set_bidirectional_streams_from_client(value.to_vec());
-        });
-        let catch = Closure::new(|e: JsValue| {
-            logging::error!("Error reading bidirectional stream: {:?}", e);
-        });
-        let _ = reader.read().then(&c).catch(&catch);
-        c.forget();
-        catch.forget();
-    });
 
     view! {
         <form on:submit=on_submit>
@@ -182,17 +153,17 @@ pub fn WebtransportDemo() -> impl IntoView {
         <form on:submit=send_data>
             <textarea value=data node_ref=text_area_element></textarea>
             <input type="submit" value="Send Data"/>
-            <input type="radio" name="method" value="send_datagram" checked=true/>
-            <label for="send_data">Send Datagram</label>
-            <input type="radio" name="method" value="send_undirectional_stream"/>
-            <label for="send_stream">Send Unidirectional Stream</label>
-            <input type="radio" name="method" value="send_bidirectional_stream"/>
-            <label for="send_datagram">Send Bidirectional Stream</label>
+            <div>
+                <input type="radio" name="method" value="send_datagram" checked=true/>
+                <label for="send_datagram">Send Datagram</label>
+                <input type="radio" name="method" value="send_undirectional_stream"/>
+                <label for="send_undirectional_stream">Send Unidirectional Stream</label>
+            </div>
         </form>
         <div>
             <h2>Received Data</h2>
             <div>
-                <textarea value=data readonly=true></textarea>
+                <h3>{move || data.get()}</h3>
             </div>
         </div>
     }

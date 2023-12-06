@@ -30,6 +30,7 @@ tracing = {version = "0.1.37", optional = true}
 tracing-subscriber = { version = "0.3.17", features = ["fmt", "ansi", "env-filter", "time", "tracing-log"], optional = true }
 wasm-bindgen = "=0.2.89"
 actix-rt = { version = "2.9.0", optional = true }
+wasm-bindgen-futures = "0.4.39"
 
 [dependencies.web-sys]
 version = "0.3.64"
