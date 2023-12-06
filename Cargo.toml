@@ -31,6 +31,8 @@ tracing-subscriber = { version = "0.3.17", features = ["fmt", "ansi", "env-filte
 wasm-bindgen = "=0.2.89"
 actix-rt = { version = "2.9.0", optional = true }
 wasm-bindgen-futures = "0.4.39"
+leptos-use = "0.9.0"
+rand = { version = "0.8.5", features = ["small_rng"] }
 
 [dependencies.web-sys]
 version = "0.3.64"
