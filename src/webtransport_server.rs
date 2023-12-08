@@ -150,7 +150,11 @@ async fn handle_connection(mut conn: Connection<h3_quinn::Connection, Bytes>) ->
                         info!("Established webtransport session");
                         // 4. Get datagrams, bidirectional streams, and unidirectional streams and wait for client requests here.
                         // h3_conn needs to handover the datagrams, bidirectional streams, and unidirectional streams to the webtransport session.
-                        handle_session(session).await?;
+                        tokio::spawn(async move {
+                            if let Err(err) = handle_session(session).await {
+                                error!("Failed to handle session: {err:?}");
+                            }
+                        });
                         return Ok(());
                     }
                     _ => {
