@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use js_sys::Uint8Array;
 use leptos::{html::Input, *};
 use leptos_webtransport::{WebTransportService, WebTransportStatus, WebTransportTask};
@@ -16,7 +18,7 @@ pub fn WebtransportDemo() -> impl IntoView {
     let url_input_element: NodeRef<Input> = create_node_ref();
     let (connect, set_connect) = create_signal(false);
     let (status, set_status) = create_signal(WebTransportStatus::Closed);
-    let (transport, set_transport) = create_signal::<Option<WebTransportTask>>(None);
+    let (transport, set_transport) = create_signal::<Option<Rc<WebTransportTask>>>(None);
     let datagrams = create_rw_signal(create_signal::<Vec<u8>>(Vec::new()).0);
     let unidirectional_streams = create_rw_signal(create_signal::<Option<_>>(None).0);
     let bidirectional_streams = create_rw_signal(create_signal::<Option<_>>(None).0);
@@ -48,7 +50,7 @@ pub fn WebtransportDemo() -> impl IntoView {
                 unidirectional_streams.set(t.unidirectional_stream.clone());
                 bidirectional_streams.set(t.bidirectional_stream.clone());
                 set_status(t.status.get());
-                set_transport(Some(t));
+                set_transport(Some(Rc::new(t)));
             }
         } else {
             if let Some(t) = transport.get_untracked().as_ref() {
