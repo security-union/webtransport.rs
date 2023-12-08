@@ -1,14 +1,13 @@
+use std::rc::Rc;
+
 use js_sys::Uint8Array;
-use leptos::{
-    html::{Input, Textarea},
-    *,
-};
+use leptos::{html::Input, *};
 use leptos_webtransport::{WebTransportService, WebTransportStatus, WebTransportTask};
 
+use leptos_use::use_interval_fn;
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::{spawn_local, JsFuture};
-use std::sync::Arc;
-use web_sys::SubmitEvent;
+use web_sys::{Event, SubmitEvent};
 
 pub const ECHO_URL: &str = "https://127.0.0.1:4433/";
 
@@ -19,10 +18,15 @@ pub fn WebtransportDemo() -> impl IntoView {
     let url_input_element: NodeRef<Input> = create_node_ref();
     let (connect, set_connect) = create_signal(false);
     let (status, set_status) = create_signal(WebTransportStatus::Closed);
-    let (transport, set_transport) = create_signal::<Arc<Option<WebTransportTask>>>(Arc::new(None));
+    let (transport, set_transport) = create_signal::<Option<Rc<WebTransportTask>>>(None);
     let datagrams = create_rw_signal(create_signal::<Vec<u8>>(Vec::new()).0);
     let unidirectional_streams = create_rw_signal(create_signal::<Option<_>>(None).0);
     let bidirectional_streams = create_rw_signal(create_signal::<Option<_>>(None).0);
+    let (msg_rate, set_msg_rate) = create_signal(1);
+    let (msg_size, set_msg_size) = create_signal(1);
+    let (payload, set_payload) = create_signal::<Option<(String, String)>>(None);
+    let (recv_msg_count, set_recv_msg_count) = create_signal(0);
+    let (recv_msg_rate, set_recv_msg_rate) = create_signal(0);
 
     let on_submit = move |ev: SubmitEvent| {
         // stop the page from reloading!
@@ -46,49 +50,74 @@ pub fn WebtransportDemo() -> impl IntoView {
                 unidirectional_streams.set(t.unidirectional_stream.clone());
                 bidirectional_streams.set(t.bidirectional_stream.clone());
                 set_status(t.status.get());
-                set_transport(Arc::new(Some(t)));
+                set_transport(Some(Rc::new(t)));
             }
         } else {
             if let Some(t) = transport.get_untracked().as_ref() {
                 t.close();
             }
             set_status(WebTransportStatus::Closed);
-            set_transport(Arc::new(None));
+            set_transport(None);
         }
         set_connect(!connect.get_untracked());
         set_url(value.clone());
     };
-    let text_area_element: NodeRef<Textarea> = create_node_ref();
+
+    create_effect(move |_| {
+        let Some((msg, method)) = payload.get() else {
+            return;
+        };
+        use_interval_fn(
+            move || {
+                if let Some(t) = transport.get().as_ref() {
+                    match method.as_str() {
+                        "send_datagram" => {
+                            WebTransportTask::send_datagram(
+                                t.transport.clone(),
+                                msg.as_bytes().to_vec(),
+                            );
+                        }
+                        "send_undirectional_stream" => {
+                            WebTransportTask::send_unidirectional_stream(
+                                t.transport.clone(),
+                                msg.as_bytes().to_vec(),
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+            },
+            1000 / msg_rate.get_untracked(),
+        );
+        use_interval_fn(
+            move || {
+                let n = recv_msg_count.get_untracked();
+                set_recv_msg_rate(n);
+                set_recv_msg_count(0);
+            },
+            1000,
+        );
+    });
 
     let send_data = move |ev: SubmitEvent| {
         // stop the page from reloading!
         ev.prevent_default();
-        let value = text_area_element()
-            .expect("<textarea> to exist")
+        let method = ev
+            .target()
+            .expect("event target")
+            .unchecked_into::<web_sys::HtmlFormElement>()
+            .elements()
+            .named_item("method")
+            .expect("method")
+            .unchecked_into::<web_sys::HtmlInputElement>()
             .value();
-        set_data(value.clone());
-        if let Some(t) = transport.get_untracked().as_ref() {
-            let method = ev
-                .target()
-                .expect("event target")
-                .unchecked_into::<web_sys::HtmlFormElement>()
-                .elements()
-                .named_item("method")
-                .expect("method")
-                .unchecked_into::<web_sys::HtmlInputElement>()
-                .value();
-            logging::log!("method: {}", method);
-
-            match method.as_str() {
-                "send_datagram" => {
-                    WebTransportTask::send_datagram(t.transport.clone(), value.as_bytes().to_vec());
-                }
-                "send_undirectional_stream" => {
-                    WebTransportTask::send_unidirectional_stream(t.transport.clone(), value.as_bytes().to_vec());
-                }
-                _ => {}
-            }
-        }
+        logging::log!("method: {}", method);
+        // Generate a random string of length `size`
+        let msg = (0..msg_size.get_untracked())
+            .map(|_| rand::random::<u8>() % 26 + 97)
+            .map(char::from)
+            .collect::<String>();
+        set_payload(Some((msg, method)));
     };
 
     create_effect(move |_| {
@@ -113,9 +142,11 @@ pub fn WebtransportDemo() -> impl IntoView {
     });
 
     create_effect(move |_| {
-        let datagram= datagrams.get().get();
+        let datagram = datagrams.get().get();
         let s = String::from_utf8(datagram).unwrap();
         logging::log!("Received datagram: {}", s);
+        set_data(s);
+        set_recv_msg_count(recv_msg_count.get_untracked() + 1);
     });
 
     create_effect(move |_| {
@@ -123,11 +154,18 @@ pub fn WebtransportDemo() -> impl IntoView {
             logging::log!("No unidirectional stream");
             return;
         };
-        let reader = stream.get_reader().unchecked_into::<web_sys::ReadableStreamDefaultReader>();
+        let reader = stream
+            .get_reader()
+            .unchecked_into::<web_sys::ReadableStreamDefaultReader>();
         spawn_local(async move {
             let result = JsFuture::from(reader.read()).await.unwrap();
-            let done = js_sys::Reflect::get(&result, &JsValue::from_str("done")).unwrap().as_bool().unwrap();
-            let value = js_sys::Reflect::get(&result, &JsValue::from_str("value")).unwrap().unchecked_into::<Uint8Array>();
+            let done = js_sys::Reflect::get(&result, &JsValue::from_str("done"))
+                .unwrap()
+                .as_bool()
+                .unwrap();
+            let value = js_sys::Reflect::get(&result, &JsValue::from_str("value"))
+                .unwrap()
+                .unchecked_into::<Uint8Array>();
             if done {
                 logging::log!("Unidirectional stream closed");
             }
@@ -135,10 +173,9 @@ pub fn WebtransportDemo() -> impl IntoView {
             let s = String::from_utf8(value.to_vec()).unwrap();
             logging::log!("Received unidirectional stream: {}", s);
             set_data(s);
-
+            set_recv_msg_count(recv_msg_count.get_untracked() + 1);
         });
     });
-
 
     view! {
         <form on:submit=on_submit>
@@ -151,8 +188,29 @@ pub fn WebtransportDemo() -> impl IntoView {
         <h2>{move || { format!("WebTransport Status: {:?}", status.get()) }}
         </h2>
         <form on:submit=send_data>
-            <textarea value=data node_ref=text_area_element></textarea>
-            <input type="submit" value="Send Data"/>
+            <div>
+            <label for="msg_rate">Message Rate</label>
+            <input type="text" name="msg_rate" value=msg_rate on:input=move |ev: Event| {
+                let value = ev
+                    .target()
+                    .expect("event target")
+                    .unchecked_into::<web_sys::HtmlInputElement>()
+                    .value();
+                set_msg_rate(value.parse::<u64>().unwrap());
+            }/>
+        </div>
+            <div>
+            <label for="msg_size">Message Size</label>
+            <input type="text" name="msg_size" value=msg_size on:input=move |ev: Event| {
+                let value = ev
+                    .target()
+                    .expect("event target")
+                    .unchecked_into::<web_sys::HtmlInputElement>()
+                    .value();
+                set_msg_size(value.parse::<usize>().unwrap());
+            }/>
+            </div>
+            <input type="submit" value="Start Sending"/>
             <div>
                 <input type="radio" name="method" value="send_datagram" checked=true/>
                 <label for="send_datagram">Send Datagram</label>
@@ -161,9 +219,10 @@ pub fn WebtransportDemo() -> impl IntoView {
             </div>
         </form>
         <div>
-            <h2>Received Data</h2>
+            <h2># of received messages in last second</h2>
             <div>
-                <h3>{move || data.get()}</h3>
+                <h3>{move || recv_msg_rate.get()}</h3>
+                <p>Received data: {move || data.get().truncate(200)}</p>
             </div>
         </div>
     }
