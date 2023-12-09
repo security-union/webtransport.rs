@@ -253,24 +253,19 @@ where
                 }
             }
             bidi_stream = session.accept_bi() => {
-                if let Ok(Some(AcceptedBi::Request(_id, mut bidi_stream))) = bidi_stream {
+                if let Some(AcceptedBi::BidiStream(_id, bidi_stream)) = bidi_stream? {
+                    let (mut send, mut recv) = quic::BidiStream::split(bidi_stream);
                     tokio::spawn(async move {
-                        let Ok(Some(mut buf)) = bidi_stream.recv_data().await else {
-                            error!("Error reading from bidirectional stream");
-                            return;
-                        };
+                        let mut buf = Vec::new();
+                        recv.read_to_end(&mut buf).await;
                         info!("Echoing bidirectional stream data");
-                        let Ok(mut stream) = session.open_bi(session_id).await else {
-                            error!("Error opening bidirectional stream");
-                            return;
-                        };
-                        let Ok(_) = stream.write_all_buf(&mut buf).await else {
+                        let mut message = Bytes::from(buf);
+                        let Ok(_) = send.write_all_buf(&mut message).await else {
                             error!("Error writing to bidirectional stream");
                             return;
                         };
                     });
                 } else {
-                    error!("Error receiving bidirectional stream");
                     return Err(anyhow!("Error receiving bidirectional stream"));
                 }
             }

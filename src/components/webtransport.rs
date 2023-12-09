@@ -27,6 +27,7 @@ pub fn WebtransportDemo() -> impl IntoView {
     let (payload, set_payload) = create_signal::<Option<(String, String)>>(None);
     let (recv_msg_count, set_recv_msg_count) = create_signal(0);
     let (recv_msg_rate, set_recv_msg_rate) = create_signal(0);
+    let (bidi_read, bidi_write_signal) = create_signal::<Vec<u8>>(Vec::new());
 
     let on_submit = move |ev: SubmitEvent| {
         ev.prevent_default();
@@ -83,6 +84,13 @@ pub fn WebtransportDemo() -> impl IntoView {
                             WebTransportTask::send_unidirectional_stream(
                                 t.transport.clone(),
                                 msg.as_bytes().to_vec(),
+                            );
+                        }
+                        "send_bidirectional_stream" => {
+                            WebTransportTask::send_bidirectional_stream(
+                                t.transport.clone(),
+                                msg.as_bytes().to_vec(),
+                                bidi_write_signal.clone(),
                             );
                         }
                         _ => {}
@@ -226,6 +234,8 @@ pub fn WebtransportDemo() -> impl IntoView {
                 <label for="send_datagram">Send Datagram</label>
                 <input type="radio" name="method" value="send_undirectional_stream"/>
                 <label for="send_undirectional_stream">Send Unidirectional Stream</label>
+                <input type="radio" name="method" value="send_bidirectional_stream"/>
+                <label for="send_bidirectional_stream">Send Bidirectional Stream</label>
             </div>
         </form>
         <div>
