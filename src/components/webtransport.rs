@@ -29,38 +29,40 @@ pub fn WebtransportDemo() -> impl IntoView {
     let (recv_msg_rate, set_recv_msg_rate) = create_signal(0);
 
     let on_submit = move |ev: SubmitEvent| {
-        // stop the page from reloading!
         ev.prevent_default();
+        batch(move || {
+            // stop the page from reloading!
 
-        // here, we'll extract the value from the input
-        let value = url_input_element()
-            // event handlers can only fire after the view
-            // is mounted to the DOM, so the `NodeRef` will be `Some`
-            .expect("<input> to exist")
-            // `NodeRef` implements `Deref` for the DOM element type
-            // this means we can call`HtmlInputElement::value()`
-            // to get the current value of the input
-            .value();
+            // here, we'll extract the value from the input
+            let value = url_input_element()
+                // event handlers can only fire after the view
+                // is mounted to the DOM, so the `NodeRef` will be `Some`
+                .expect("<input> to exist")
+                // `NodeRef` implements `Deref` for the DOM element type
+                // this means we can call`HtmlInputElement::value()`
+                // to get the current value of the input
+                .value();
 
-        let connected = connect.get_untracked();
+            let connected = connect.get_untracked();
 
-        if !connected {
-            if let Ok(t) = WebTransportService::connect(&value) {
-                datagrams.set(t.datagram.clone());
-                unidirectional_streams.set(t.unidirectional_stream.clone());
-                bidirectional_streams.set(t.bidirectional_stream.clone());
-                set_status(t.status.get());
-                set_transport(Some(Rc::new(t)));
+            if !connected {
+                if let Ok(t) = WebTransportService::connect(&value) {
+                    datagrams.set(t.datagram.clone());
+                    unidirectional_streams.set(t.unidirectional_stream.clone());
+                    bidirectional_streams.set(t.bidirectional_stream.clone());
+                    set_status(t.status.get());
+                    set_transport(Some(Rc::new(t)));
+                }
+            } else {
+                if let Some(t) = transport.get_untracked().as_ref() {
+                    t.close();
+                }
+                set_status(WebTransportStatus::Closed);
+                set_transport(None);
             }
-        } else {
-            if let Some(t) = transport.get_untracked().as_ref() {
-                t.close();
-            }
-            set_status(WebTransportStatus::Closed);
-            set_transport(None);
-        }
-        set_connect(!connect.get_untracked());
-        set_url(value.clone());
+            set_connect(!connect.get_untracked());
+            set_url(value.clone());
+        });
     };
 
     create_effect(move |_| {
@@ -142,11 +144,17 @@ pub fn WebtransportDemo() -> impl IntoView {
     });
 
     create_effect(move |_| {
-        let datagram = datagrams.get().get();
-        let s = String::from_utf8(datagram).unwrap();
-        logging::log!("Received datagram: {}", s);
-        set_data(s);
-        set_recv_msg_count(recv_msg_count.get_untracked() + 1);
+        batch(move || {
+            let datagram = datagrams.get().get();
+            let s = String::from_utf8(datagram).unwrap();
+            logging::log!("Received datagram: {}", s);
+            // push s to the end of the data
+            let next_data = s + &data.get_untracked() + &'\n'.to_string();
+            //trim the first 200 chars
+            let next_data = next_data.chars().take(200).collect::<String>();
+            set_data(next_data);
+            set_recv_msg_count(recv_msg_count.get_untracked() + 1);
+        });
     });
 
     create_effect(move |_| {
@@ -224,7 +232,7 @@ pub fn WebtransportDemo() -> impl IntoView {
             <h2># of received messages in last second</h2>
             <div>
                 <h3>{move || recv_msg_rate.get()}</h3>
-                <p>Received data: {move || data.get().truncate(200)}</p>
+                <p>Received data: {move || data.get()}</p>
             </div>
         </div>
     }
