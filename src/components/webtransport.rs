@@ -165,6 +165,22 @@ pub fn WebtransportDemo() -> impl IntoView {
         });
     });
 
+    // handle bidirectional stream
+    create_effect(move |_| {
+        // geto the inbound data from bidi_read
+        batch(move || {
+            let bidi_data = bidi_read.get();
+            let s = String::from_utf8(bidi_data).unwrap();
+            logging::log!("Received bidi data: {}", s);
+            // push s to the end of the data
+            let next_data = s + &data.get_untracked() + &'\n'.to_string();
+            //trim the first 200 chars
+            let next_data = next_data.chars().take(200).collect::<String>();
+            set_data(next_data);
+            set_recv_msg_count(recv_msg_count.get_untracked() + 1);
+        });
+    });
+
     create_effect(move |_| {
         let Some(stream) = unidirectional_streams.get().get() else {
             logging::log!("No unidirectional stream");
