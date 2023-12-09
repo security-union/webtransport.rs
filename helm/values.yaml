@@ -1,0 +1,52 @@
+# Default values for webtransport-rs.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+nameOverride: ""
+fullnameOverride: ""
+
+replicaCount: 1
+image:
+  repository: securityunion/webtransport-leptos
+  pullPolicy: Always
+  tag: latest
+tlsSecret: webtransport-rs-tls
+env:
+  - name: RUST_LOG
+    value: info,quinn=warn
+  - name: LISTEN_URL
+    value: 0.0.0.0:443
+  - name: LEPTOS_SITE_ADDR
+    value: 0.0.0.0:443
+  - name: CERT_PATH
+    value: /certs/tls.crt
+  - name: KEY_PATH
+    value: /certs/tls.key
+resources: {}
+podAnnotations: {}
+podSecurityContext: {}
+securityContext: {}
+service:
+  type: NodePort
+  port: 443
+nodeSelector:
+  node-role: worker
+tolerations: []
+affinity:
+  podAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: app
+              operator: Exists
+        topologyKey: "kubernetes.io/hostname"
+# Used to configure cloud provider specific LB service type
+loadBalancerAnnotations:
+  external-dns.alpha.kubernetes.io/hostname: "webtransport.rs"
+  service.beta.kubernetes.io/do-loadbalancer-healthcheck-protocol: "http"
+  service.beta.kubernetes.io/do-loadbalancer-healthcheck-check-interval-seconds: "3"
+  service.beta.kubernetes.io/do-loadbalancer-healthcheck-response-timeout-seconds: "4"
+  service.beta.kubernetes.io/do-loadbalancer-healthcheck-unhealthy-threshold: "3"
+  service.beta.kubernetes.io/do-loadbalancer-healthcheck-healthy-threshold: "5"
+  service.beta.kubernetes.io/do-loadbalancer-healthcheck-port: "443"
+  service.beta.kubernetes.io/do-loadbalancer-size-unit: "1"
+  service.beta.kubernetes.io/do-loadbalancer-healthcheck-path: "/healthz"

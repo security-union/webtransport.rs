@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "webtransport-rs.fullname" . }}-lb
+  labels:
+    {{- include "webtransport-rs.labels" . | nindent 4 }}
+  {{- if .Values.loadBalancerAnnotations}}
+  annotations:
+  {{- range $key, $value := .Values.loadBalancerAnnotations }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+  {{- end }}
+spec:
+  type: LoadBalancer
+  selector:
+    {{- include "webtransport-rs.selectorLabels" . | nindent 4 }}
+  ports:
+    - protocol: UDP
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}
+      name: wt-udp
+    - protocol: TCP
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}
+      name: http
