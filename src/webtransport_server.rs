@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use anyhow::{Context, Result};
 use bytes::Bytes;
 use http::Method;
@@ -214,75 +215,68 @@ where
     let s = Arc::new(session);
     info!("WebTransport session established {:?}", session_id);
 
-    let should_run2 = should_run.clone();
-
-    let quic_task = tokio::spawn(async move {
-        // let s = s.clone();
-        while should_run2.load(Ordering::SeqCst) {
-            let session = s.clone();
-            tokio::select! {
-                datagram = session.accept_datagram() => {
-                    if let Ok(Some((_id, buf))) = datagram {
-                        info!("Echoing datagram: {:?}", buf);
-                        let Ok(_) = session.send_datagram(buf) else {
-                            error!("Error sending datagram");
+    while should_run.load(Ordering::SeqCst) {
+        let session = s.clone();
+        tokio::select! {
+            datagram = session.accept_datagram() => {
+                if let Ok(Some((_id, buf))) = datagram {
+                    info!("Echoing datagram: {:?}", buf);
+                    let Ok(_) = session.send_datagram(buf) else {
+                        return Err(anyhow!("Error sending datagram"));
+                    };
+                } else {
+                    error!("Error receiving datagram");
+                    return Err(anyhow!("Error receiving datagram"));
+                }
+            }
+            uni_stream = session.accept_uni() => {
+                if let Ok(Some((_id, mut uni_stream))) = uni_stream {
+                    tokio::spawn(async move {
+                        let mut buf = Vec::new();
+                        let Ok(_n) = uni_stream.read_to_end(&mut buf).await else {
+                            error!("Error reading from unidirectional stream");
                             return;
                         };
-                    } else {
-                        error!("Error receiving datagram");
-                        return;
-                    }
+                        info!("Echoing unidirectional stream data: {:?}", buf);
+                        let Ok(mut stream) = session.open_uni(session_id).await else {
+                            error!("Error opening unidirectional stream");
+                            return;
+                        };
+                        let Ok(_) = stream.write_all(&buf).await else {
+                            error!("Error writing to unidirectional stream");
+                            return;
+                        };
+                    });
+                } else {
+                    error!("Error receiving unidirectional stream");
+                    return Err(anyhow!("Error receiving unidirectional stream"));
                 }
-                uni_stream = session.accept_uni() => {
-                    if let Ok(Some((_id, mut uni_stream))) = uni_stream {
-                        tokio::spawn(async move {
-                            let mut buf = Vec::new();
-                            let Ok(_n) = uni_stream.read_to_end(&mut buf).await else {
-                                error!("Error reading from unidirectional stream");
-                                return;
-                            };
-                            info!("Echoing unidirectional stream data: {:?}", buf);
-                            let Ok(mut stream) = session.open_uni(session_id).await else {
-                                error!("Error opening unidirectional stream");
-                                return;
-                            };
-                            let Ok(_) = stream.write_all(&buf).await else {
-                                error!("Error writing to unidirectional stream");
-                                return;
-                            };
-                        });
-                    } else {
-                        error!("Error receiving unidirectional stream");
-                        return;
-                    }
-                }
-                bidi_stream = session.accept_bi() => {
-                    if let Ok(Some(AcceptedBi::Request(_id, mut bidi_stream))) = bidi_stream {
-                        tokio::spawn(async move {
-                            let Ok(Some(mut buf)) = bidi_stream.recv_data().await else {
-                                error!("Error reading from bidirectional stream");
-                                return;
-                            };
-                            info!("Echoing bidirectional stream data");
-                            let Ok(mut stream) = session.open_bi(session_id).await else {
-                                error!("Error opening bidirectional stream");
-                                return;
-                            };
-                            let Ok(_) = stream.write_all_buf(&mut buf).await else {
-                                error!("Error writing to bidirectional stream");
-                                return;
-                            };
-                        });
-                    } else {
-                        error!("Error receiving bidirectional stream");
-                        return;
-                    }
+            }
+            bidi_stream = session.accept_bi() => {
+                if let Ok(Some(AcceptedBi::Request(_id, mut bidi_stream))) = bidi_stream {
+                    tokio::spawn(async move {
+                        let Ok(Some(mut buf)) = bidi_stream.recv_data().await else {
+                            error!("Error reading from bidirectional stream");
+                            return;
+                        };
+                        info!("Echoing bidirectional stream data");
+                        let Ok(mut stream) = session.open_bi(session_id).await else {
+                            error!("Error opening bidirectional stream");
+                            return;
+                        };
+                        let Ok(_) = stream.write_all_buf(&mut buf).await else {
+                            error!("Error writing to bidirectional stream");
+                            return;
+                        };
+                    });
+                } else {
+                    error!("Error receiving bidirectional stream");
+                    return Err(anyhow!("Error receiving bidirectional stream"));
                 }
             }
         }
-    });
+    }
 
-    quic_task.await?;
     should_run.store(false, Ordering::SeqCst);
     info!("Finished handling session");
     Ok(())
