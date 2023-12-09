@@ -1,3 +1,4 @@
+use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use anyhow::anyhow;
 use anyhow::{Context, Result};
 use bytes::Bytes;
@@ -21,6 +22,7 @@ use tracing::{error, info, trace_span};
 #[derive(Debug)]
 pub struct WebTransportOpt {
     pub listen: SocketAddr,
+    pub health_listen: SocketAddr,
     pub certs: Certs,
 }
 
@@ -96,6 +98,21 @@ pub async fn start(opt: WebTransportOpt) -> Result<(), Box<dyn std::error::Error
     transport_config.max_idle_timeout(Some(VarInt::from_u32(10_000).into()));
     server_config.transport = Arc::new(transport_config);
     let endpoint = quinn::Endpoint::server(server_config, opt.listen)?;
+
+    let health_listen = opt.health_listen.clone();
+    let _health_task = actix_rt::spawn(async move {
+        async fn health_response() -> impl Responder {
+            HttpResponse::Ok().body("OK")
+        }
+
+        info!("Starting health server on {}", health_listen);
+        HttpServer::new(|| App::new().route("/healthz", web::get().to(health_response)))
+            .bind(health_listen)
+            .unwrap()
+            .run()
+            .await;
+        info!("Health server stopped");
+    });
 
     info!("listening on {}", opt.listen);
 

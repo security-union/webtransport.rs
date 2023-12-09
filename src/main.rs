@@ -21,11 +21,17 @@ async fn main() -> std::io::Result<()> {
 
     let opt = WebTransportOpt {
         listen: std::env::var("LISTEN_URL")
-            .unwrap_or("0.0.0.0:4433".to_string())
+            .unwrap_or("0.0.0.0:3000".to_string())
             .to_socket_addrs()
             .expect("expected LISTEN_URL to be a valid socket address")
             .next()
             .expect("expected LISTEN_URL to be a valid socket address"),
+        health_listen: std::env::var("HEALTH_LISTEN_URL")
+            .unwrap_or("0.0.0.0:8080".to_string())
+            .to_socket_addrs()
+            .expect("expected HEALTH_LISTEN_URL to be a valid socket address")
+            .next()
+            .expect("expected HEALTH_LISTEN_URL to be a valid socket address"),
         certs: Certs {
             key: std::env::var("KEY_PATH")
                 .unwrap_or("./certs/localhost.key".into())
@@ -37,7 +43,12 @@ async fn main() -> std::io::Result<()> {
     };
 
     let _webtransport_server_task = actix_rt::spawn(async move {
-        start(opt).await.unwrap();
+        match start(opt).await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("WebTransport server error: {:?}", e);
+            }
+        }
     });
 
     HttpServer::new(move || {
@@ -45,7 +56,6 @@ async fn main() -> std::io::Result<()> {
         let site_root = &leptos_options.site_root;
 
         App::new()
-            .route("/healthz", web::get().to(|| HttpResponse::Ok()))
             .route("/api/{tail:.*}", leptos_actix::handle_server_fns())
             // serve JS/WASM/CSS from `pkg`
             .service(Files::new("/pkg", format!("{site_root}/pkg")))

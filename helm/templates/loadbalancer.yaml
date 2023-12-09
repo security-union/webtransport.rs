@@ -20,6 +20,6 @@ spec:
       targetPort: {{ .Values.service.port }}
       name: wt-udp
     - protocol: TCP
-      port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.port }}
-      name: http
+      port: {{ .Values.service.healthPort }}
+      targetPort: {{ .Values.service.healthPort }}
+      name: health

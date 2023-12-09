@@ -5,9 +5,7 @@ metadata:
   labels:
     {{- include "webtransport-rs.labels" . | nindent 4 }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
-  {{- end }}
   selector:
     matchLabels:
       {{- include "webtransport-rs.selectorLabels" . | nindent 6 }}
@@ -37,11 +35,14 @@ spec:
           env:
             {{- toYaml .Values.env | nindent 12 }}
           ports:
-            - name: wt-echo-api
+            - name: wt-udp
               containerPort: {{ .Values.service.port }}
               protocol: UDP
-            - name: wt-echo-health
-              containerPort: {{ .Values.service.httpPort }}
+            - name: http
+              containerPort: {{ .Values.service.appPort }}
+              protocol: TCP
+            - name: health
+              containerPort: {{ .Values.service.healthPort }}
               protocol: TCP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
