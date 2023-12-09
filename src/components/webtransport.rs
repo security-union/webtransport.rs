@@ -27,40 +27,43 @@ pub fn WebtransportDemo() -> impl IntoView {
     let (payload, set_payload) = create_signal::<Option<(String, String)>>(None);
     let (recv_msg_count, set_recv_msg_count) = create_signal(0);
     let (recv_msg_rate, set_recv_msg_rate) = create_signal(0);
+    let (bidi_read, bidi_write_signal) = create_signal::<Vec<u8>>(Vec::new());
 
     let on_submit = move |ev: SubmitEvent| {
-        // stop the page from reloading!
         ev.prevent_default();
+        batch(move || {
+            // stop the page from reloading!
 
-        // here, we'll extract the value from the input
-        let value = url_input_element()
-            // event handlers can only fire after the view
-            // is mounted to the DOM, so the `NodeRef` will be `Some`
-            .expect("<input> to exist")
-            // `NodeRef` implements `Deref` for the DOM element type
-            // this means we can call`HtmlInputElement::value()`
-            // to get the current value of the input
-            .value();
+            // here, we'll extract the value from the input
+            let value = url_input_element()
+                // event handlers can only fire after the view
+                // is mounted to the DOM, so the `NodeRef` will be `Some`
+                .expect("<input> to exist")
+                // `NodeRef` implements `Deref` for the DOM element type
+                // this means we can call`HtmlInputElement::value()`
+                // to get the current value of the input
+                .value();
 
-        let connected = connect.get_untracked();
+            let connected = connect.get_untracked();
 
-        if !connected {
-            if let Ok(t) = WebTransportService::connect(&value) {
-                datagrams.set(t.datagram.clone());
-                unidirectional_streams.set(t.unidirectional_stream.clone());
-                bidirectional_streams.set(t.bidirectional_stream.clone());
-                set_status(t.status.get());
-                set_transport(Some(Rc::new(t)));
+            if !connected {
+                if let Ok(t) = WebTransportService::connect(&value) {
+                    datagrams.set(t.datagram.clone());
+                    unidirectional_streams.set(t.unidirectional_stream.clone());
+                    bidirectional_streams.set(t.bidirectional_stream.clone());
+                    set_status(t.status.get());
+                    set_transport(Some(Rc::new(t)));
+                }
+            } else {
+                if let Some(t) = transport.get_untracked().as_ref() {
+                    t.close();
+                }
+                set_status(WebTransportStatus::Closed);
+                set_transport(None);
             }
-        } else {
-            if let Some(t) = transport.get_untracked().as_ref() {
-                t.close();
-            }
-            set_status(WebTransportStatus::Closed);
-            set_transport(None);
-        }
-        set_connect(!connect.get_untracked());
-        set_url(value.clone());
+            set_connect(!connect.get_untracked());
+            set_url(value.clone());
+        });
     };
 
     create_effect(move |_| {
@@ -81,6 +84,13 @@ pub fn WebtransportDemo() -> impl IntoView {
                             WebTransportTask::send_unidirectional_stream(
                                 t.transport.clone(),
                                 msg.as_bytes().to_vec(),
+                            );
+                        }
+                        "send_bidirectional_stream" => {
+                            WebTransportTask::send_bidirectional_stream(
+                                t.transport.clone(),
+                                msg.as_bytes().to_vec(),
+                                bidi_write_signal.clone(),
                             );
                         }
                         _ => {}
@@ -142,11 +152,33 @@ pub fn WebtransportDemo() -> impl IntoView {
     });
 
     create_effect(move |_| {
-        let datagram = datagrams.get().get();
-        let s = String::from_utf8(datagram).unwrap();
-        logging::log!("Received datagram: {}", s);
-        set_data(s);
-        set_recv_msg_count(recv_msg_count.get_untracked() + 1);
+        batch(move || {
+            let datagram = datagrams.get().get();
+            let s = String::from_utf8(datagram).unwrap();
+            logging::log!("Received datagram: {}", s);
+            // push s to the end of the data
+            let next_data = s + &data.get_untracked() + &'\n'.to_string();
+            //trim the first 200 chars
+            let next_data = next_data.chars().take(200).collect::<String>();
+            set_data(next_data);
+            set_recv_msg_count(recv_msg_count.get_untracked() + 1);
+        });
+    });
+
+    // handle bidirectional stream
+    create_effect(move |_| {
+        // geto the inbound data from bidi_read
+        batch(move || {
+            let bidi_data = bidi_read.get();
+            let s = String::from_utf8(bidi_data).unwrap();
+            logging::log!("Received bidi data: {}", s);
+            // push s to the end of the data
+            let next_data = s + &data.get_untracked() + &'\n'.to_string();
+            //trim the first 200 chars
+            let next_data = next_data.chars().take(200).collect::<String>();
+            set_data(next_data);
+            set_recv_msg_count(recv_msg_count.get_untracked() + 1);
+        });
     });
 
     create_effect(move |_| {
@@ -189,18 +221,20 @@ pub fn WebtransportDemo() -> impl IntoView {
         </h2>
         <form on:submit=send_data>
             <div>
-            <label for="msg_rate">Message Rate</label>
+            <label for="msg_rate">Message Rate (Hz)</label>
             <input type="text" name="msg_rate" value=msg_rate on:input=move |ev: Event| {
                 let value = ev
                     .target()
                     .expect("event target")
                     .unchecked_into::<web_sys::HtmlInputElement>()
                     .value();
-                set_msg_rate(value.parse::<u64>().unwrap());
+                if let Ok(value) = value.parse::<u64>() {
+                    set_msg_rate(value);
+                }
             }/>
         </div>
             <div>
-            <label for="msg_size">Message Size</label>
+            <label for="msg_size">Message Size (Bytes)</label>
             <input type="text" name="msg_size" value=msg_size on:input=move |ev: Event| {
                 let value = ev
                     .target()
@@ -210,19 +244,21 @@ pub fn WebtransportDemo() -> impl IntoView {
                 set_msg_size(value.parse::<usize>().unwrap());
             }/>
             </div>
-            <input type="submit" value="Start Sending"/>
+            <input type="submit" value="Start Sending" disabled=move || !connect.get()/>
             <div>
                 <input type="radio" name="method" value="send_datagram" checked=true/>
                 <label for="send_datagram">Send Datagram</label>
                 <input type="radio" name="method" value="send_undirectional_stream"/>
                 <label for="send_undirectional_stream">Send Unidirectional Stream</label>
+                <input type="radio" name="method" value="send_bidirectional_stream"/>
+                <label for="send_bidirectional_stream">Send Bidirectional Stream</label>
             </div>
         </form>
         <div>
             <h2># of received messages in last second</h2>
             <div>
                 <h3>{move || recv_msg_rate.get()}</h3>
-                <p>Received data: {move || data.get().truncate(200)}</p>
+                <p>Received data: {move || data.get()}</p>
             </div>
         </div>
     }
