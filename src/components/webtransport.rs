@@ -189,18 +189,20 @@ pub fn WebtransportDemo() -> impl IntoView {
         </h2>
         <form on:submit=send_data>
             <div>
-            <label for="msg_rate">Message Rate</label>
+            <label for="msg_rate">Message Rate (Hz)</label>
             <input type="text" name="msg_rate" value=msg_rate on:input=move |ev: Event| {
                 let value = ev
                     .target()
                     .expect("event target")
                     .unchecked_into::<web_sys::HtmlInputElement>()
                     .value();
-                set_msg_rate(value.parse::<u64>().unwrap());
+                if let Ok(value) = value.parse::<u64>() {
+                    set_msg_rate(value);
+                }
             }/>
         </div>
             <div>
-            <label for="msg_size">Message Size</label>
+            <label for="msg_size">Message Size (Bytes)</label>
             <input type="text" name="msg_size" value=msg_size on:input=move |ev: Event| {
                 let value = ev
                     .target()
@@ -210,7 +212,7 @@ pub fn WebtransportDemo() -> impl IntoView {
                 set_msg_size(value.parse::<usize>().unwrap());
             }/>
             </div>
-            <input type="submit" value="Start Sending"/>
+            <input type="submit" value="Start Sending" disabled=move || !connect.get()/>
             <div>
                 <input type="radio" name="method" value="send_datagram" checked=true/>
                 <label for="send_datagram">Send Datagram</label>
