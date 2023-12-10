@@ -9,7 +9,7 @@ use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::{spawn_local, JsFuture};
 use web_sys::{Event, SubmitEvent};
 
-pub const ECHO_URL: &str = "https://127.0.0.1:4433/";
+pub const ECHO_URL: &str = "https://echo.webtransport.rs";
 
 #[component]
 pub fn WebtransportDemo() -> impl IntoView {

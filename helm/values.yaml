@@ -1,0 +1,84 @@
+# Default values for webtransport-rs.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+nameOverride: ""
+fullnameOverride: ""
+
+replicaCount: 1
+image:
+  repository: securityunion/webtransport-leptos
+  pullPolicy: Always
+  tag: 6d45922
+tlsSecret: webtransport-rs-tls
+env:
+  - name: RUST_LOG
+    value: info,quinn=warn
+  - name: LISTEN_URL
+    value: 0.0.0.0:443
+  - name: LEPTOS_SITE_ADDR
+    value: 0.0.0.0:80
+  - name: CERT_PATH
+    value: /certs/tls.crt
+  - name: KEY_PATH
+    value: /certs/tls.key
+resources: {}
+podAnnotations: {}
+podSecurityContext: {}
+securityContext: {}
+service:
+  type: NodePort
+  appPort: 80
+  port: 443
+  healthPort: 8080
+nodeSelector:
+  node-role: worker
+tolerations: []
+affinity:
+  podAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: app
+              operator: Exists
+        topologyKey: "kubernetes.io/hostname"
+# Used to configure cloud provider specific LB service type
+loadBalancerAnnotations:
+  external-dns.alpha.kubernetes.io/hostname: "echo.webtransport.rs"
+  service.beta.kubernetes.io/do-loadbalancer-healthcheck-protocol: "http"
+  service.beta.kubernetes.io/do-loadbalancer-healthcheck-check-interval-seconds: "3"
+  service.beta.kubernetes.io/do-loadbalancer-healthcheck-response-timeout-seconds: "4"
+  service.beta.kubernetes.io/do-loadbalancer-healthcheck-unhealthy-threshold: "3"
+  service.beta.kubernetes.io/do-loadbalancer-healthcheck-healthy-threshold: "5"
+  service.beta.kubernetes.io/do-loadbalancer-healthcheck-port: "8080"
+  service.beta.kubernetes.io/do-loadbalancer-size-unit: "1"
+  service.beta.kubernetes.io/do-loadbalancer-healthcheck-path: "/healthz"
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    kubernetes.io/tls-acme: "true"
+    external-dns.alpha.kubernetes.io/hostname: "webtransport.rs"
+  hosts:
+    - host: www.webtransport.rs
+      paths:
+        - path: /
+          pathType: Prefix
+          service:
+            name: webtransport-rs
+            port:
+              number: 80
+    - host: webtransport.rs
+      paths:
+        - path: /
+          pathType: Prefix
+          service:
+            name: webtransport-rs
+            port:
+              number: 80
+  tls:
+    - secretName: webtransport-rs-tls
+      hosts:
+        - webtransport.rs
+        - '*.webtransport.rs'
