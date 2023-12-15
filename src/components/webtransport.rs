@@ -3,7 +3,6 @@ use std::{
     rc::Rc,
 };
 
-use gloo_console::log;
 use js_sys::{JsString, Uint8Array};
 use leptos::{html::Input, *};
 use leptos_use::use_interval_fn;
@@ -22,7 +21,6 @@ fn is_webtransport_available() -> bool {
         // check if the error is due to WebTransport not being available
         let output = format!("{:?}", e);
         // Create a Formatter
-        log!("output ", &output);
         return !output.contains("ReferenceError");
     }
     true
@@ -293,7 +291,6 @@ pub fn WebtransportDemo() -> impl IntoView {
         }
     };
 
-    view! {
-        {show_webtransport_error}
-    }
+
+    show_webtransport_error
 }
