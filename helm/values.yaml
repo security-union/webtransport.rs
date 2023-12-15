@@ -8,7 +8,7 @@ replicaCount: 1
 image:
   repository: securityunion/webtransport-leptos
   pullPolicy: Always
-  tag: 4a50244
+  tag: 98e6f02
 tlsSecret: webtransport-rs-tls
 env:
   - name: RUST_LOG
