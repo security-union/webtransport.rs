@@ -1,18 +1,34 @@
-use std::rc::Rc;
+use std::{rc::Rc, fmt::{self, Formatter}};
 
-use js_sys::Uint8Array;
+use gloo_console::log;
+use js_sys::{Uint8Array, JsString};
 use leptos::{html::Input, *};
 use leptos_webtransport::{WebTransportService, WebTransportStatus, WebTransportTask};
-
+use web_sys::WebTransport;
 use leptos_use::use_interval_fn;
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::{spawn_local, JsFuture};
 use web_sys::{Event, SubmitEvent};
+use std::fmt::Debug;
 
 pub const ECHO_URL: &str = "https://echo.webtransport.rs";
 
+/// Check if webtransport is available using web-sys
+fn is_webtransport_available() -> bool {
+    let result = WebTransport::new(ECHO_URL);
+    if let Err(e) = result {
+        // check if the error is due to WebTransport not being available
+        let output = format!("{:?}", e);
+        // Create a Formatter
+        log!("output ", &output);
+        return !output.contains("ReferenceError")
+    }
+    true
+}
+
 #[component]
 pub fn WebtransportDemo() -> impl IntoView {
+
     let (data, set_data) = create_signal(String::new());
     let (url, set_url) = create_signal(ECHO_URL.to_string());
     let url_input_element: NodeRef<Input> = create_node_ref();
@@ -28,7 +44,7 @@ pub fn WebtransportDemo() -> impl IntoView {
     let (recv_msg_count, set_recv_msg_count) = create_signal(0);
     let (recv_msg_rate, set_recv_msg_rate) = create_signal(0);
     let (bidi_read, bidi_write_signal) = create_signal::<Vec<u8>>(Vec::new());
-
+    let (webtransport_available, set_is_webtransport_available) = create_signal(false);
     let on_submit = move |ev: SubmitEvent| {
         ev.prevent_default();
         batch(move || {
@@ -65,6 +81,10 @@ pub fn WebtransportDemo() -> impl IntoView {
             set_url(value.clone());
         });
     };
+
+    create_effect(move |_| {
+        set_is_webtransport_available(is_webtransport_available());
+    });
 
     create_effect(move |_| {
         let Some((msg, method)) = payload.get() else {
@@ -209,57 +229,70 @@ pub fn WebtransportDemo() -> impl IntoView {
         });
     });
 
+    let show_webtransport_error = move || {
+        if !webtransport_available.get() {
+            view! {
+                <p>WebTransport is not available in your browser. Please use a browser that supports WebTransport.</p>
+                <p>Check <a href="https://caniuse.com/webtransport">caniuse.com</a> for the latest browser support.</p>
+            } 
+        } else {
+            view! {
+                <form on:submit=on_submit>
+                <input type="text" value=url node_ref=url_input_element/>
+                <input
+                    type="submit"
+                    value=move || { if connect.get() { "Disconnect" } else { "Connect" } }
+                />
+            </form>
+            <h2>{move || { format!("WebTransport Status: {:?}", status.get()) }}
+            </h2>
+            <form on:submit=send_data>
+                <div>
+                <label for="msg_rate">Message Rate (Hz)</label>
+                <input type="text" name="msg_rate" value=msg_rate on:input=move |ev: Event| {
+                    let value = ev
+                        .target()
+                        .expect("event target")
+                        .unchecked_into::<web_sys::HtmlInputElement>()
+                        .value();
+                    if let Ok(value) = value.parse::<u64>() {
+                        set_msg_rate(value);
+                    }
+                }/>
+            </div>
+                <div>
+                <label for="msg_size">Message Size (Bytes)</label>
+                <input type="text" name="msg_size" value=msg_size on:input=move |ev: Event| {
+                    let value = ev
+                        .target()
+                        .expect("event target")
+                        .unchecked_into::<web_sys::HtmlInputElement>()
+                        .value();
+                    set_msg_size(value.parse::<usize>().unwrap());
+                }/>
+                </div>
+                <input type="submit" value="Start Sending" disabled=move || !connect.get()/>
+                <div>
+                    <input type="radio" name="method" value="send_datagram" checked=true/>
+                    <label for="send_datagram">Send Datagram</label>
+                    <input type="radio" name="method" value="send_undirectional_stream"/>
+                    <label for="send_undirectional_stream">Send Unidirectional Stream</label>
+                    <input type="radio" name="method" value="send_bidirectional_stream"/>
+                    <label for="send_bidirectional_stream">Send Bidirectional Stream</label>
+                </div>
+            </form>
+            <div>
+                <h2># of received messages in last second</h2>
+                <div>
+                    <h3>{move || recv_msg_rate.get()}</h3>
+                    <p>Received data: {move || data.get()}</p>
+                </div>
+            </div>
+            }
+        }
+    };
+
     view! {
-        <form on:submit=on_submit>
-            <input type="text" value=url node_ref=url_input_element/>
-            <input
-                type="submit"
-                value=move || { if connect.get() { "Disconnect" } else { "Connect" } }
-            />
-        </form>
-        <h2>{move || { format!("WebTransport Status: {:?}", status.get()) }}
-        </h2>
-        <form on:submit=send_data>
-            <div>
-            <label for="msg_rate">Message Rate (Hz)</label>
-            <input type="text" name="msg_rate" value=msg_rate on:input=move |ev: Event| {
-                let value = ev
-                    .target()
-                    .expect("event target")
-                    .unchecked_into::<web_sys::HtmlInputElement>()
-                    .value();
-                if let Ok(value) = value.parse::<u64>() {
-                    set_msg_rate(value);
-                }
-            }/>
-        </div>
-            <div>
-            <label for="msg_size">Message Size (Bytes)</label>
-            <input type="text" name="msg_size" value=msg_size on:input=move |ev: Event| {
-                let value = ev
-                    .target()
-                    .expect("event target")
-                    .unchecked_into::<web_sys::HtmlInputElement>()
-                    .value();
-                set_msg_size(value.parse::<usize>().unwrap());
-            }/>
-            </div>
-            <input type="submit" value="Start Sending" disabled=move || !connect.get()/>
-            <div>
-                <input type="radio" name="method" value="send_datagram" checked=true/>
-                <label for="send_datagram">Send Datagram</label>
-                <input type="radio" name="method" value="send_undirectional_stream"/>
-                <label for="send_undirectional_stream">Send Unidirectional Stream</label>
-                <input type="radio" name="method" value="send_bidirectional_stream"/>
-                <label for="send_bidirectional_stream">Send Bidirectional Stream</label>
-            </div>
-        </form>
-        <div>
-            <h2># of received messages in last second</h2>
-            <div>
-                <h3>{move || recv_msg_rate.get()}</h3>
-                <p>Received data: {move || data.get()}</p>
-            </div>
-        </div>
+        {show_webtransport_error}
     }
 }
