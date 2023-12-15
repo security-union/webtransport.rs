@@ -1,15 +1,17 @@
-use std::{rc::Rc, fmt::{self, Formatter}};
+use std::{
+    fmt::{self, Formatter},
+    rc::Rc,
+};
 
 use gloo_console::log;
-use js_sys::{Uint8Array, JsString};
+use js_sys::{JsString, Uint8Array};
 use leptos::{html::Input, *};
-use leptos_webtransport::{WebTransportService, WebTransportStatus, WebTransportTask};
-use web_sys::WebTransport;
 use leptos_use::use_interval_fn;
+use leptos_webtransport::{WebTransportService, WebTransportStatus, WebTransportTask};
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::{spawn_local, JsFuture};
+use web_sys::WebTransport;
 use web_sys::{Event, SubmitEvent};
-use std::fmt::Debug;
 
 pub const ECHO_URL: &str = "https://echo.webtransport.rs";
 
@@ -21,14 +23,13 @@ fn is_webtransport_available() -> bool {
         let output = format!("{:?}", e);
         // Create a Formatter
         log!("output ", &output);
-        return !output.contains("ReferenceError")
+        return !output.contains("ReferenceError");
     }
     true
 }
 
 #[component]
 pub fn WebtransportDemo() -> impl IntoView {
-
     let (data, set_data) = create_signal(String::new());
     let (url, set_url) = create_signal(ECHO_URL.to_string());
     let url_input_element: NodeRef<Input> = create_node_ref();
@@ -234,7 +235,7 @@ pub fn WebtransportDemo() -> impl IntoView {
             view! {
                 <p>WebTransport is not available in your browser. Please use a browser that supports WebTransport.</p>
                 <p>Check <a href="https://caniuse.com/webtransport">caniuse.com</a> for the latest browser support.</p>
-            } 
+            }
         } else {
             view! {
                 <form on:submit=on_submit>

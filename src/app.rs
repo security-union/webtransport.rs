@@ -1,15 +1,7 @@
 use crate::components::WebtransportDemo;
-use leptos_meta::*;
 use leptos::*;
+use leptos_meta::*;
 use leptos_router::*;
-
-/// verify if the browser supports WebTransport by looking if window.WebTransport is defined
-fn check_webtransport() -> bool {
-    true
-    // web_sys::window()
-    //     .and_then(|w| w.dyn_into::<web_sys::WebTransport>().ok())
-    //     .is_some()
-}
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -21,6 +13,8 @@ pub fn App() -> impl IntoView {
 
         // sets the document title
         <Title text="Welcome to Leptos"/>
+
+        // content for this welcome page
         <Router>
             <main>
                 <Routes>
@@ -35,10 +29,9 @@ pub fn App() -> impl IntoView {
 /// Renders the home page of your application.
 #[component]
 fn HomePage() -> impl IntoView {
-    view! {<div>
+    view! {
         <h1>"Welcome to Leptos WebTransport!"</h1>
         <WebtransportDemo/>
-        </div>
     }
 }
 
