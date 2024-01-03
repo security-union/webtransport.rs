@@ -1,4 +1,4 @@
-use crate::components::WebtransportDemo;
+use crate::components::{TopBar, WebtransportDemo};
 use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
@@ -9,6 +9,7 @@ pub fn App() -> impl IntoView {
     provide_meta_context();
 
     view! {
+        <Stylesheet id="leptos" href="/pkg/leptos-actix-webtransport-template.css"/>
         // sets the document title
         <Title text="Welcome to Leptos"/>
 
@@ -28,8 +29,13 @@ pub fn App() -> impl IntoView {
 #[component]
 fn HomePage() -> impl IntoView {
     view! {
-        <h1>"Welcome to Leptos WebTransport!"</h1>
-        <WebtransportDemo/>
+        <>
+            <TopBar/>
+            <div class="dark:bg-gray-800 dark:text-white p-4 min-h-screen w-full md:max-w-3xl mx-auto">
+            <h1 class="text-xl font-semibold my-4">"Welcome to Leptos WebTransport!"</h1>
+                <WebtransportDemo/>
+            </div>
+        </>
     }
 }
 
