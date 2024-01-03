@@ -11,7 +11,7 @@ pub fn App() -> impl IntoView {
     view! {
         <Stylesheet id="leptos" href="/pkg/leptos-actix-webtransport-template.css"/>
         // sets the document title
-        <Title text="Welcome to Leptos"/>
+        <Title text="WebTransport.rs"/>
 
         // content for this welcome page
         <Router>
