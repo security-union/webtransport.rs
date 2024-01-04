@@ -1,4 +1,4 @@
-FROM rust:1.74-slim-bookworm as builder
+FROM --platform=linux/amd64 rust:1.74-slim-bookworm as builder
 
 RUN rustup default nightly
 RUN rustup target add wasm32-unknown-unknown
@@ -16,7 +16,7 @@ COPY . .
 
 RUN cargo leptos build --release
 
-FROM debian:bookworm-slim
+FROM --platform=linux/amd64 debian:bookworm-slim
 
 # Copy the server binary to the /app directory
 COPY --from=builder /app/target/release/leptos-actix-webtransport-template /app/

@@ -236,61 +236,86 @@ pub fn WebtransportDemo() -> impl IntoView {
             }
         } else {
             view! {
-                <form on:submit=on_submit>
-                <input type="text" value=url node_ref=url_input_element/>
-                <input
-                    type="submit"
-                    value=move || { if connect.get() { "Disconnect" } else { "Connect" } }
-                />
-            </form>
-            <h2>{move || { format!("WebTransport Status: {:?}", status.get()) }}
-            </h2>
-            <form on:submit=send_data>
-                <div>
-                <label for="msg_rate">Message Rate (Hz)</label>
-                <input type="text" name="msg_rate" value=msg_rate on:input=move |ev: Event| {
-                    let value = ev
-                        .target()
-                        .expect("event target")
-                        .unchecked_into::<web_sys::HtmlInputElement>()
-                        .value();
-                    if let Ok(value) = value.parse::<u64>() {
-                        set_msg_rate(value);
-                    }
-                }/>
-            </div>
-                <div>
-                <label for="msg_size">Message Size (Bytes)</label>
-                <input type="text" name="msg_size" value=msg_size on:input=move |ev: Event| {
-                    let value = ev
-                        .target()
-                        .expect("event target")
-                        .unchecked_into::<web_sys::HtmlInputElement>()
-                        .value();
-                    set_msg_size(value.parse::<usize>().unwrap());
-                }/>
-                </div>
-                <input type="submit" value="Start Sending" disabled=move || !connect.get()/>
-                <div>
-                    <input type="radio" name="method" value="send_datagram" checked=true/>
-                    <label for="send_datagram">Send Datagram</label>
-                    <input type="radio" name="method" value="send_undirectional_stream"/>
-                    <label for="send_undirectional_stream">Send Unidirectional Stream</label>
-                    <input type="radio" name="method" value="send_bidirectional_stream"/>
-                    <label for="send_bidirectional_stream">Send Bidirectional Stream</label>
-                </div>
-            </form>
-            <div>
-                <h2># of received messages in last second</h2>
-                <div>
-                    <h3>{move || recv_msg_rate.get()}</h3>
-                    <p>Received data: {move || data.get()}</p>
-                </div>
-            </div>
+                <>
+                    <form on:submit=on_submit class="flex flex-col gap-4">
+                        <input
+                            type="text"
+                            value=url
+                            node_ref=url_input_element
+                            class="p-2 border border-gray-600 bg-gray-700 rounded"
+                        />
+                        <input
+                            type="submit"
+                            value=move || { if connect.get() { "Disconnect" } else { "Connect" } }
+                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer"
+                        />
+                    </form>
+                    <h2 class="text-xl font-semibold my-4">
+                        {move || { format!("WebTransport Status: {:?}", status.get()) }}
+                    </h2>
+                    <form on:submit=send_data class="flex flex-col gap-4">
+                        <div class="flex flex-col">
+                            <label for="msg_rate" class="mb-2">Message Rate (Hz)</label>
+                            <input
+                                type="text"
+                                name="msg_rate"
+                                value=msg_rate
+                                on:input=move |ev: Event| {
+                                    let value = ev
+                                        .target()
+                                        .expect("event target")
+                                        .unchecked_into::<web_sys::HtmlInputElement>()
+                                        .value();
+                                    if let Ok(value) = value.parse::<u64>() {
+                                        set_msg_rate(value);
+                                    }
+                                }
+                                class="p-2 border border-gray-600 bg-gray-700 rounded"
+                            />
+                        </div>
+                        <div class="flex flex-col">
+                            <label for="msg_size" class="mb-2">Message Size (Bytes)</label>
+                            <input
+                                type="text"
+                                name="msg_size"
+                                value=msg_size
+                                on:input=move |ev: Event| {
+                                    let value = ev
+                                        .target()
+                                        .expect("event target")
+                                        .unchecked_into::<web_sys::HtmlInputElement>()
+                                        .value();
+                                    set_msg_size(value.parse::<usize>().unwrap());
+                                }
+                                class="p-2 border border-gray-600 bg-gray-700 rounded"
+                            />
+                        </div>
+                        <input
+                            type="submit"
+                            value="Start Sending"
+                            disabled=move || !connect.get()
+                            class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded cursor-pointer disabled:opacity-50"
+                        />
+                        <div class="flex items-center gap-2">
+                            <input type="radio" name="method" value="send_datagram" checked=true class="cursor-pointer"/>
+                            <label for="send_datagram" class="cursor-pointer">Send Datagram</label>
+                            <input type="radio" name="method" value="send_undirectional_stream" class="cursor-pointer"/>
+                            <label for="send_undirectional_stream" class="cursor-pointer">Send Unidirectional Stream</label>
+                            <input type="radio" name="method" value="send_bidirectional_stream" class="cursor-pointer"/>
+                            <label for="send_bidirectional_stream" class="cursor-pointer">Send Bidirectional Stream</label>
+                        </div>
+                    </form>
+                    <div class="my-4">
+                        <h2 class="text-xl font-semibold"># of received messages in last second</h2>
+                        <div class="mt-2">
+                            <h3 class="text-lg font-bold">{move || recv_msg_rate.get()}</h3>
+                            <p>Received data: {move || data.get()}</p>
+                        </div>
+                    </div>
+                </>
             }
         }
     };
-
 
     show_webtransport_error
 }
