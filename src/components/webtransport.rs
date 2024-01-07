@@ -1,9 +1,6 @@
-use std::{
-    fmt::{self, Formatter},
-    rc::Rc,
-};
+use std::rc::Rc;
 
-use js_sys::{JsString, Uint8Array};
+use js_sys::Uint8Array;
 use leptos::{html::Input, *};
 use leptos_use::use_interval_fn;
 use leptos_webtransport::{WebTransportService, WebTransportStatus, WebTransportTask};
@@ -63,9 +60,9 @@ pub fn WebtransportDemo() -> impl IntoView {
 
             if !connected {
                 if let Ok(t) = WebTransportService::connect(&value) {
-                    datagrams.set(t.datagram.clone());
-                    unidirectional_streams.set(t.unidirectional_stream.clone());
-                    bidirectional_streams.set(t.bidirectional_stream.clone());
+                    datagrams.set(t.datagram);
+                    unidirectional_streams.set(t.unidirectional_stream);
+                    bidirectional_streams.set(t.bidirectional_stream);
                     set_status(t.status.get());
                     set_transport(Some(Rc::new(t)));
                 }
@@ -109,7 +106,7 @@ pub fn WebtransportDemo() -> impl IntoView {
                             WebTransportTask::send_bidirectional_stream(
                                 t.transport.clone(),
                                 msg.as_bytes().to_vec(),
-                                bidi_write_signal.clone(),
+                                bidi_write_signal,
                             );
                         }
                         _ => {}
@@ -228,94 +225,90 @@ pub fn WebtransportDemo() -> impl IntoView {
         });
     });
 
-    let show_webtransport_error = move || {
-        if !webtransport_available.get() {
-            view! {
-                <p>WebTransport is not available in your browser. Please use a browser that supports WebTransport.</p>
-                <p>Check <a href="https://caniuse.com/webtransport">caniuse.com</a> for the latest browser support.</p>
-            }
-        } else {
-            view! {
-                <>
-                    <form on:submit=on_submit class="flex flex-col gap-4">
+    if !webtransport_available.get() {
+        view! {
+            <p>WebTransport is not available in your browser. Please use a browser that supports WebTransport.</p>
+            <p>Check <a href="https://caniuse.com/webtransport">caniuse.com</a> for the latest browser support.</p>
+        }
+    } else {
+        view! {
+            <>
+                <form on:submit=on_submit class="flex flex-col gap-4">
+                    <input
+                        type="text"
+                        value=url
+                        node_ref=url_input_element
+                        class="p-2 border border-gray-600 bg-gray-700 rounded"
+                    />
+                    <input
+                        type="submit"
+                        value=move || { if connect.get() { "Disconnect" } else { "Connect" } }
+                        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer"
+                    />
+                </form>
+                <h2 class="text-xl font-semibold my-4">
+                    {move || { format!("WebTransport Status: {:?}", status.get()) }}
+                </h2>
+                <form on:submit=send_data class="flex flex-col gap-4">
+                    <div class="flex flex-col">
+                        <label for="msg_rate" class="mb-2">Message Rate (Hz)</label>
                         <input
                             type="text"
-                            value=url
-                            node_ref=url_input_element
+                            name="msg_rate"
+                            value=msg_rate
+                            on:input=move |ev: Event| {
+                                let value = ev
+                                    .target()
+                                    .expect("event target")
+                                    .unchecked_into::<web_sys::HtmlInputElement>()
+                                    .value();
+                                if let Ok(value) = value.parse::<u64>() {
+                                    set_msg_rate(value);
+                                }
+                            }
                             class="p-2 border border-gray-600 bg-gray-700 rounded"
                         />
-                        <input
-                            type="submit"
-                            value=move || { if connect.get() { "Disconnect" } else { "Connect" } }
-                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer"
-                        />
-                    </form>
-                    <h2 class="text-xl font-semibold my-4">
-                        {move || { format!("WebTransport Status: {:?}", status.get()) }}
-                    </h2>
-                    <form on:submit=send_data class="flex flex-col gap-4">
-                        <div class="flex flex-col">
-                            <label for="msg_rate" class="mb-2">Message Rate (Hz)</label>
-                            <input
-                                type="text"
-                                name="msg_rate"
-                                value=msg_rate
-                                on:input=move |ev: Event| {
-                                    let value = ev
-                                        .target()
-                                        .expect("event target")
-                                        .unchecked_into::<web_sys::HtmlInputElement>()
-                                        .value();
-                                    if let Ok(value) = value.parse::<u64>() {
-                                        set_msg_rate(value);
-                                    }
-                                }
-                                class="p-2 border border-gray-600 bg-gray-700 rounded"
-                            />
-                        </div>
-                        <div class="flex flex-col">
-                            <label for="msg_size" class="mb-2">Message Size (Bytes)</label>
-                            <input
-                                type="text"
-                                name="msg_size"
-                                value=msg_size
-                                on:input=move |ev: Event| {
-                                    let value = ev
-                                        .target()
-                                        .expect("event target")
-                                        .unchecked_into::<web_sys::HtmlInputElement>()
-                                        .value();
-                                    set_msg_size(value.parse::<usize>().unwrap());
-                                }
-                                class="p-2 border border-gray-600 bg-gray-700 rounded"
-                            />
-                        </div>
-                        <input
-                            type="submit"
-                            value="Start Sending"
-                            disabled=move || !connect.get()
-                            class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded cursor-pointer disabled:opacity-50"
-                        />
-                        <div class="flex items-center gap-2">
-                            <input type="radio" name="method" value="send_datagram" checked=true class="cursor-pointer"/>
-                            <label for="send_datagram" class="cursor-pointer">Send Datagram</label>
-                            <input type="radio" name="method" value="send_undirectional_stream" class="cursor-pointer"/>
-                            <label for="send_undirectional_stream" class="cursor-pointer">Send Unidirectional Stream</label>
-                            <input type="radio" name="method" value="send_bidirectional_stream" class="cursor-pointer"/>
-                            <label for="send_bidirectional_stream" class="cursor-pointer">Send Bidirectional Stream</label>
-                        </div>
-                    </form>
-                    <div class="my-4">
-                        <h2 class="text-xl font-semibold"># of received messages in last second</h2>
-                        <div class="mt-2">
-                            <h3 class="text-lg font-bold">{move || recv_msg_rate.get()}</h3>
-                            <p>Received data: {move || data.get()}</p>
-                        </div>
                     </div>
-                </>
-            }
+                    <div class="flex flex-col">
+                        <label for="msg_size" class="mb-2">Message Size (Bytes)</label>
+                        <input
+                            type="text"
+                            name="msg_size"
+                            value=msg_size
+                            on:input=move |ev: Event| {
+                                let value = ev
+                                    .target()
+                                    .expect("event target")
+                                    .unchecked_into::<web_sys::HtmlInputElement>()
+                                    .value();
+                                set_msg_size(value.parse::<usize>().unwrap());
+                            }
+                            class="p-2 border border-gray-600 bg-gray-700 rounded"
+                        />
+                    </div>
+                    <input
+                        type="submit"
+                        value="Start Sending"
+                        disabled=move || !connect.get()
+                        class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded cursor-pointer disabled:opacity-50"
+                    />
+                    <div class="flex items-center gap-2">
+                        <input type="radio" name="method" value="send_datagram" checked=true class="cursor-pointer"/>
+                        <label for="send_datagram" class="cursor-pointer">Send Datagram</label>
+                        <input type="radio" name="method" value="send_undirectional_stream" class="cursor-pointer"/>
+                        <label for="send_undirectional_stream" class="cursor-pointer">Send Unidirectional Stream</label>
+                        <input type="radio" name="method" value="send_bidirectional_stream" class="cursor-pointer"/>
+                        <label for="send_bidirectional_stream" class="cursor-pointer">Send Bidirectional Stream</label>
+                    </div>
+                </form>
+                <div class="my-4">
+                    <h2 class="text-xl font-semibold"># of received messages in last second</h2>
+                    <div class="mt-2">
+                        <h3 class="text-lg font-bold">{move || recv_msg_rate.get()}</h3>
+                        <p>Received data: {move || data.get()}</p>
+                    </div>
+                </div>
+            </>
         }
-    };
-
-    show_webtransport_error
+    }
 }

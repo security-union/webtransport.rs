@@ -1,4 +1,4 @@
-use leptos::{html::Input, *};
+use leptos::*;
 
 use crate::components::{discord::DiscordIcon, youtube::YouTubeIcon};
 

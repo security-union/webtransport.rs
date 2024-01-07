@@ -1,4 +1,4 @@
-use leptos::{html::Input, *};
+use leptos::*;
 
 #[component]
 pub fn YouTubeIcon() -> impl IntoView {
