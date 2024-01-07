@@ -31,7 +31,7 @@ pub fn TopBar() -> impl IntoView {
                     </div>
                 </a>
                 <a href="https://m.do.co/c/6de4e19c5193" class="m-auto" target="_blank">
-                    <div class="w-8">
+                    <div class="w-20">
                         <DigitalOceanIcon/>
                     </div>
                 </a>

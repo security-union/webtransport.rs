@@ -4,8 +4,6 @@ use leptos::*;
 pub fn DigitalOceanIcon() -> impl IntoView {
     view! {
         <svg
-            width="200"
-            height="65"
             viewBox="0 0 200 65"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
