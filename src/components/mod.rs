@@ -1,3 +1,4 @@
+mod digital_ocean;
 mod discord;
 mod top_bar;
 mod webtransport;

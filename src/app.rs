@@ -29,13 +29,13 @@ pub fn App() -> impl IntoView {
 #[component]
 fn HomePage() -> impl IntoView {
     view! {
-        <>
+        <div class="dark:bg-gray-800 dark:text-white min-h-screen w-full">
             <TopBar/>
-            <div class="dark:bg-gray-800 dark:text-white p-4 min-h-screen w-full md:max-w-3xl mx-auto">
-            <h1 class="text-xl font-semibold my-4">"Welcome to Leptos WebTransport!"</h1>
+            <div class="p-4 md:max-w-3xl mx-auto">
+                <h1 class="text-xl font-semibold my-4">"Welcome to Leptos WebTransport!"</h1>
                 <WebtransportDemo/>
             </div>
-        </>
+        </div>
     }
 }
 

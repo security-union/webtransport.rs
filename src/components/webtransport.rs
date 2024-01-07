@@ -225,13 +225,21 @@ pub fn WebtransportDemo() -> impl IntoView {
         });
     });
 
-    if !webtransport_available.get() {
-        view! {
-            <p>WebTransport is not available in your browser. Please use a browser that supports WebTransport.</p>
-            <p>Check <a href="https://caniuse.com/webtransport">caniuse.com</a> for the latest browser support.</p>
-        }
-    } else {
-        view! {
+    view! {
+        <Show
+            when=move || webtransport_available.get()
+            fallback=|| {
+                view! {
+                    <p>
+                        WebTransport is not available in your browser. Please use a browser that supports WebTransport.
+                    </p>
+                    <p>
+                        Check <a href="https://caniuse.com/webtransport">caniuse.com</a>
+                        for the latest browser support.
+                    </p>
+                }
+            }
+        >
             <>
                 <form on:submit=on_submit class="flex flex-col gap-4">
                     <input
@@ -251,7 +259,9 @@ pub fn WebtransportDemo() -> impl IntoView {
                 </h2>
                 <form on:submit=send_data class="flex flex-col gap-4">
                     <div class="flex flex-col">
-                        <label for="msg_rate" class="mb-2">Message Rate (Hz)</label>
+                        <label for="msg_rate" class="mb-2">
+                            Message Rate (Hz)
+                        </label>
                         <input
                             type="text"
                             name="msg_rate"
@@ -266,11 +276,14 @@ pub fn WebtransportDemo() -> impl IntoView {
                                     set_msg_rate(value);
                                 }
                             }
+
                             class="p-2 border border-gray-600 bg-gray-700 rounded"
                         />
                     </div>
                     <div class="flex flex-col">
-                        <label for="msg_size" class="mb-2">Message Size (Bytes)</label>
+                        <label for="msg_size" class="mb-2">
+                            Message Size (Bytes)
+                        </label>
                         <input
                             type="text"
                             name="msg_size"
@@ -283,6 +296,7 @@ pub fn WebtransportDemo() -> impl IntoView {
                                     .value();
                                 set_msg_size(value.parse::<usize>().unwrap());
                             }
+
                             class="p-2 border border-gray-600 bg-gray-700 rounded"
                         />
                     </div>
@@ -293,12 +307,34 @@ pub fn WebtransportDemo() -> impl IntoView {
                         class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded cursor-pointer disabled:opacity-50"
                     />
                     <div class="flex items-center gap-2">
-                        <input type="radio" name="method" value="send_datagram" checked=true class="cursor-pointer"/>
-                        <label for="send_datagram" class="cursor-pointer">Send Datagram</label>
-                        <input type="radio" name="method" value="send_undirectional_stream" class="cursor-pointer"/>
-                        <label for="send_undirectional_stream" class="cursor-pointer">Send Unidirectional Stream</label>
-                        <input type="radio" name="method" value="send_bidirectional_stream" class="cursor-pointer"/>
-                        <label for="send_bidirectional_stream" class="cursor-pointer">Send Bidirectional Stream</label>
+                        <input
+                            type="radio"
+                            name="method"
+                            value="send_datagram"
+                            checked=true
+                            class="cursor-pointer"
+                        />
+                        <label for="send_datagram" class="cursor-pointer">
+                            Send Datagram
+                        </label>
+                        <input
+                            type="radio"
+                            name="method"
+                            value="send_undirectional_stream"
+                            class="cursor-pointer"
+                        />
+                        <label for="send_undirectional_stream" class="cursor-pointer">
+                            Send Unidirectional Stream
+                        </label>
+                        <input
+                            type="radio"
+                            name="method"
+                            value="send_bidirectional_stream"
+                            class="cursor-pointer"
+                        />
+                        <label for="send_bidirectional_stream" class="cursor-pointer">
+                            Send Bidirectional Stream
+                        </label>
                     </div>
                 </form>
                 <div class="my-4">
@@ -309,6 +345,6 @@ pub fn WebtransportDemo() -> impl IntoView {
                     </div>
                 </div>
             </>
-        }
+        </Show>
     }
 }
