@@ -1,10 +1,7 @@
-# Live Demo
-[Webtransport.rs](https://webtransport.rs)
-
-# Leptos WebTransport Starter Template
+# webtransport.rs - A Leptos Starter Template
+> Live demo available at [webtransport.rs](https://webtransport.rs)
 
 This is a template for use with the [Leptos](https://github.com/leptos-rs/leptos) web framework and the [cargo-leptos](https://github.com/akesson/cargo-leptos) tool.
-
 
 ## Running your project
 
@@ -27,15 +24,3 @@ Although it is not recommended, you can also run your project without server int
 `trunk serve --open --features csr`
 
 This may be useful for integrating external tools which require a static site, e.g. `tauri`.
-
-## Known Issues
-
-1. If you run into "it looks like the Rust project used to create this wasm file was linked against
-    version of wasm-bindgen that uses a different bindgen format than this binary:", 
-    consult https://github.com/leptos-rs/leptos/issues/1051
-
-    Their proposed solution is to run:
-    ```
-    cargo install -f wasm-bindgen-cli
-    cargo install --git https://github.com/leptos-rs/cargo-leptos --locked cargo-leptos
-    ```
