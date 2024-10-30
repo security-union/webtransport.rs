@@ -23,7 +23,6 @@ replace the server endpoint to https://127.0.0.1:3000 to test the WebTransport A
 By default, `cargo-leptos` uses `nightly` Rust, `cargo-generate`, and `sass`. If you run into any trouble, you may need to install one or more of these tools.
 
 1. `cargo install --locked cargo-leptos  --version 0.1.11`
-1. `rustup default nightly-2023-10-26` - make sure you have Rust nightly
 2. `rustup target add wasm32-unknown-unknown` - add the ability to compile Rust to WebAssembly
 3. `cargo install cargo-generate` - install `cargo-generate` binary (should be installed automatically in future)
 4. `npm install -g sass` - install `dart-sass` (should be optional in future)
