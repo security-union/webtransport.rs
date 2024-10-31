@@ -21,7 +21,13 @@ env:
     value: /certs/tls.crt
   - name: KEY_PATH
     value: /certs/tls.key
-resources: {}
+resources:
+  requests:
+    memory: "50Mi"
+    cpu: "25m"
+  limits:
+    memory: "50Mi"
+    cpu: "25m"
 podAnnotations: {}
 podSecurityContext: {}
 securityContext: {}
@@ -30,17 +36,17 @@ service:
   appPort: 80
   port: 443
   healthPort: 8080
-nodeSelector:
-  node-role: worker
+# nodeSelector:
+#   node-role: worker
 tolerations: []
-affinity:
-  podAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchExpressions:
-            - key: app
-              operator: Exists
-        topologyKey: "kubernetes.io/hostname"
+affinity: {}
+  # podAffinity:
+  #   requiredDuringSchedulingIgnoredDuringExecution:
+  #     - labelSelector:
+  #         matchExpressions:
+  #           - key: app
+  #             operator: Exists
+  #       topologyKey: "kubernetes.io/hostname"
 # Used to configure cloud provider specific LB service type
 loadBalancerAnnotations:
   external-dns.alpha.kubernetes.io/hostname: "echo.webtransport.rs"

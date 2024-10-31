@@ -12,4 +12,5 @@ spec:
       protocol: TCP
       name: http
   selector:
-    {{- include "webtransport-rs.selectorLabels" . | nindent 4 }}
+    app: webtransport-website
+
